@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelNightCat's Meme Generator</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        :root {
+            --accent: #3b82f6;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .app-container {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .full { grid-column: span 2; }
+
+        input {
+            background: #334155;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .export-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="controls">
+        <div class="full">
+            <label>Upload Background</label>
+            <input type="file" id="loader" accept="image/*">
+        </div>
+        <div>
+            <label>Top Text (Auto-scaling)</label>
+            <input type="text" id="top" value="LONG TEXT WILL AUTOMATICALLY">
+        </div>
+        <div>
+            <label>Bottom Text (Auto-scaling)</label>
+            <input type="text" id="bottom" value="SHRINK TO FIT THE SCREEN">
+        </div>
+        <div class="full">
+            <label>Watermark</label>
+            <input type="text" id="wm" value="@MEME_GEN">
+        </div>
+    </div>
+
+    <canvas id="cvs"></canvas>
+    <button class="export-btn" id="save">DOWNLOAD MEME</button>
+</div>
+
+<script>
+    const cvs = document.getElementById('cvs');
+    const ctx = cvs.getContext('2d');
+    const loader = document.getElementById('loader');
+    const topInp = document.getElementById('top');
+    const botInp = document.getElementById('bottom');
+    const wmInp = document.getElementById('wm');
+    const saveBtn = document.getElementById('save');
+
+    let img = null;
+
+    function drawText(text, y, isTop) {
+        if (!text) return;
+        
+        // 1. Start with a large base font size
+        let fontSize = cvs.width * 0.12; 
+        ctx.font = `bold ${fontSize}px Impact, sans-serif`;
+        
+        // 2. Shrink loop: Decrease font size until it fits within 95% of canvas width
+        const maxWidth = cvs.width * 0.95;
+        while (ctx.measureText(text.toUpperCase()).width > maxWidth && fontSize > 10) {
+            fontSize -= 2;
+            ctx.font = `bold ${fontSize}px Impact, sans-serif`;
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = isTop ? 'top' : 'bottom';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = fontSize / 6;
+        ctx.lineJoin = 'round';
+
+        const output = text.toUpperCase();
+        ctx.strokeText(output, cvs.width / 2, y);
+        ctx.fillText(output, cvs.width / 2, y);
+    }
+
+    function render() {
+        if (!img) return;
+
+        // Draw Background
+        ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
+
+        // Render Top & Bottom
+        drawText(topInp.value, 20, true);
+        drawText(botInp.value, cvs.height - 20, false);
+
+        // Watermark
+        const wm = wmInp.value;
+        if (wm) {
+            ctx.globalAlpha = 0.5;
+            ctx.font = `bold ${cvs.width * 0.04}px Impact, sans-serif`;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.lineWidth = 4;
+            ctx.strokeText(wm, cvs.width - 15, 15);
+            ctx.fillText(wm, cvs.width - 15, 15);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    loader.onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            img = new Image();
+            img.onload = () => {
+                const max = 800;
+                const ratio = Math.min(1, max / img.width);
+                cvs.width = img.width * ratio;
+                cvs.height = img.height * ratio;
+                render();
+            };
+            img.src = ev.target.result;
+        };
+        if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
+    };
+
+    [topInp, botInp, wmInp].forEach(el => el.oninput = render);
+
+    saveBtn.onclick = () => {
+        if (!img) return alert("Upload image!");
+        const a = document.createElement('a');
+        a.download = 'meme.png';
+        a.href = cvs.toDataURL();
+        a.click();
+    };
+</script>
+
+</body>
+</html>
